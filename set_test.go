@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/xtgo/set"
-	"github.com/xtgo/set/setutil"
 )
 
 const format = "%s(%v) = %v, want %v"
@@ -36,15 +35,15 @@ func setup(a, b string) (s string, pivot int) {
 func runMutator(t *testing.T, spec SliceSpec) {
 	for _, tt := range tests {
 		in, pivot := setup(tt.a, tt.b)
-		s := setutil.Letters(in)
+		s := Letters(in)
 		//iface := LoggingInterface{t, s, pivot}
 		iface := s
 		l := spec.Op(iface, pivot)
 		want := spec.Sel(tt)
 		if want != string(s[:l]) {
-			in := setutil.Letters(in).Mark(pivot, -1, -1)
+			in := Letters(in).Mark(pivot, -1, -1)
 			s := s.Mark(l, -1, -1)
-			want := setutil.Letters(want).Mark(len(want), -1, -1)
+			want := Letters(want).Mark(len(want), -1, -1)
 			t.Errorf(format, spec.Name, in, s, want)
 		}
 	}
@@ -77,7 +76,7 @@ func TestSymDiff(t *testing.T) {
 func runBoolean(t *testing.T, spec BoolSpec) {
 	for _, tt := range tests {
 		in, pivot := setup(tt.a, tt.b)
-		s := setutil.Letters(in)
+		s := Letters(in)
 		ok := spec.Op(s, pivot)
 		want := spec.Sel(tt)
 		if ok != want {
@@ -137,9 +136,28 @@ func TestUniq(t *testing.T) {
 	}
 }
 
+type Letters []byte
+
+func (s Letters) Len() int           { return len(s) }
+func (s Letters) Less(i, j int) bool { return s[i] < s[j] }
+func (s Letters) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s Letters) String() string     { return string(s) }
+
+func (s Letters) Mark(pivot, i, j int) string {
+	t := append([]byte(nil), s...)
+	switch {
+	case i != j:
+		t[j] -= 'a' - 'A'
+		fallthrough
+	case i >= 0:
+		t[i] -= 'a' - 'A'
+	}
+	return fmt.Sprintf("[%s|%s]", t[:pivot], t[pivot:])
+}
+
 type LoggingInterface struct {
 	t     *testing.T
-	s     setutil.Letters
+	s     Letters
 	pivot int
 }
 
