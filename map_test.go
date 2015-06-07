@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains a straightforward map-based set implementation for
-// benchmark comparison purposes.
+// This file contains a reasonable map-based set implementation for use in
+// comparative benchmarks.
 
 package set_test
 
@@ -27,14 +27,27 @@ func (s IntSet) Inter(t IntSet) {
 }
 
 func (s IntSet) Diff(t IntSet) {
-	for k := range t {
-		delete(s, k)
+	if len(t) <= len(s) {
+		for k := range t {
+			delete(s, k)
+		}
+		return
+	}
+	for k := range s {
+		_, ok := t[k]
+		if ok {
+			delete(s, k)
+		}
 	}
 }
 
 func (s IntSet) SymDiff(t IntSet) {
-	for k := range s {
-		_, ok := t[k]
+	u, v := s, t
+	if len(t) < len(s) {
+		u, v = v, u
+	}
+	for k := range u {
+		_, ok := v[k]
 		if ok {
 			delete(s, k)
 			delete(t, k)
