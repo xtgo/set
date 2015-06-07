@@ -10,8 +10,9 @@ import "sort"
 // as set.Inter.
 type Op func(data sort.Interface, pivot int) (size int)
 
-// Pivots transforms set-relative sizes into data-absolute pivots.
-// sizes may be modified.
+// Pivots transforms set-relative sizes into data-absolute pivots. Pivots is
+// mostly only useful in conjunction with Apply. The sizes slice sizes may
+// be modified by the call.
 func Pivots(sizes ...int) []int {
 	n := 0
 	for i, l := range sizes {
