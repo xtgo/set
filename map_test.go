@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file contains a straightforward map-based set implementation for
+// benchmark comparison purposes.
+
 package set_test
 
 var mote struct{}
@@ -42,6 +45,12 @@ func (s IntSet) SymDiff(t IntSet) {
 	}
 }
 
+func (s IntSet) Apply(op func(s, t IntSet), sets ...IntSet) {
+	for _, t := range sets {
+		op(s, t)
+	}
+}
+
 func NewIntSet(s []int) IntSet {
 	t := make(IntSet, len(s))
 	for _, k := range s {
@@ -54,10 +63,4 @@ func CopyIntSet(s IntSet) IntSet {
 	t := make(IntSet, len(s))
 	t.Union(s)
 	return t
-}
-
-func ApplyIntSet(op func(IntSet), sets ...IntSet) {
-	for _, s := range sets {
-		op(s)
-	}
 }

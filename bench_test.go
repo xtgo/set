@@ -5,6 +5,7 @@
 package set_test
 
 import (
+	"math/rand"
 	"sort"
 	"testing"
 
@@ -53,9 +54,7 @@ func benchOp(b *testing.B, op set.Op, sets [][]int) {
 	data := make(sort.IntSlice, 0, len(s)+len(t))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		//b.StopTimer()
 		data = append(append(data[:0], s...), t...)
-		//b.StartTimer()
 		op(data, len(s))
 	}
 }
@@ -64,10 +63,45 @@ func benchMapOp(b *testing.B, op func(s, t IntSet), sets [][]int) {
 	s, t := NewIntSet(sets[0]), NewIntSet(sets[1])
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		//b.StopTimer()
 		x, y := CopyIntSet(s), CopyIntSet(t)
-		//b.StartTimer()
 		op(x, y)
+	}
+}
+
+func pivots(sets [][]int) []int {
+	lengths := make([]int, len(sets))
+	for i, set := range sets {
+		lengths[i] = len(set)
+	}
+	return set.Pivots(lengths...)
+}
+
+func benchApply(b *testing.B, op set.Op, sets [][]int) {
+	pivots := pivots(sets)
+	n := len(sets) - 1
+	data := make(sort.IntSlice, 0, pivots[n])
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		data = data[:0]
+		for _, set := range sets {
+			data = append(data, set...)
+		}
+		set.Apply(op, data, pivots)
+	}
+}
+
+func benchMapApply(b *testing.B, op func(s, t IntSet), sets [][]int) {
+	orig := make([]IntSet, len(sets))
+	for i, set := range sets {
+		orig[i] = NewIntSet(set)
+	}
+	msets := make([]IntSet, len(sets))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for i := range sets {
+			msets[i] = CopyIntSet(orig[i])
+		}
+		msets[0].Apply(op, msets[1:]...)
 	}
 }
 
@@ -83,6 +117,17 @@ func dataRevCat(n int, size int) [][]int { return reverse(concat(n, size, 0)) }
 func dataAlternate(n int, size int) [][]int { return interleave(n, size) }
 
 func dataOverlap(n int, size int) [][]int { return concat(n, size, -size/2) }
+
+func dataRand(n int, size int) [][]int {
+	rand.Seed(0)
+	sets := make([][]int, n)
+	for i := range sets {
+		start, l := rand.Intn(size), rand.Intn(size)+1
+		stop := start + l
+		sets[i] = seq(start, stop, 1)
+	}
+	return sets
+}
 
 func BenchmarkUnion64K_revcat(b *testing.B)    { benchOp(b, set.Union, dataRevCat(2, large)) }
 func BenchmarkMapUnion64K_revcat(b *testing.B) { benchMapOp(b, IntSet.Union, dataRevCat(2, large)) }
@@ -126,3 +171,6 @@ func BenchmarkSymDiff_alt32(b *testing.B)     { benchOp(b, set.SymDiff, dataAlte
 func BenchmarkMapSymDiff_alt32(b *testing.B)  { benchMapOp(b, IntSet.SymDiff, dataAlternate(2, small)) }
 func BenchmarkSymDiff_alt64K(b *testing.B)    { benchOp(b, set.SymDiff, dataAlternate(2, large)) }
 func BenchmarkMapSymDiff_alt64K(b *testing.B) { benchMapOp(b, IntSet.SymDiff, dataAlternate(2, large)) }
+
+func BenchmarkApply256_64K(b *testing.B)    { benchApply(b, set.Inter, dataRand(256, large)) }
+func BenchmarkMapApply256_64K(b *testing.B) { benchMapApply(b, IntSet.Inter, dataRand(256, large)) }
