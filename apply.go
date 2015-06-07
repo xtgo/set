@@ -28,8 +28,9 @@ func Pivots(sizes ...int) []int {
 // pivot semantics of other functions (which treat pivot as a delimiter) in
 // order to make initializing the pivots slice simpler.
 //
-// Only associative operations should be used (Diff is not associative); see
-// the Apply (Diff) example for a workaround. The result of applying SymDiff
+// data.Swap and data.Less are assumed to be concurrent-safe. Only
+// associative operations should be used (Diff is not associative); see the
+// Apply (Diff) example for a workaround. The result of applying SymDiff
 // will contain elements that exist in an odd number of sets.
 //
 // The implementation runs op concurrently on pairs of neighbor sets
