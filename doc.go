@@ -18,7 +18,7 @@
 // undefined order and may contain duplicates.
 //
 // All pivots must be in the range [0:Len]. A panic may occur when invalid
-// panics are passed into any of the functions.
+// pivots are passed into any of the functions.
 //
 // Elements will be considered equal if `!Less(i,j) && !Less(j,i)`.
 package set
