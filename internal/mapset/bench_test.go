@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package set_test
+package mapset_test
 
 import (
-	"sort"
 	"testing"
 
-	"github.com/xtgo/set"
-	"github.com/xtgo/set/internal/sliceset"
+	"github.com/xtgo/set/internal/mapset"
 	td "github.com/xtgo/set/internal/testdata"
 )
 
@@ -31,40 +29,14 @@ func BenchmarkSymDiff64K(b *testing.B)      { benchOp(b, "SymDiff", td.Overlap(2
 func BenchmarkSymDiff_alt32(b *testing.B)   { benchOp(b, "SymDiff", td.Alternate(2, td.Small)) }
 func BenchmarkSymDiff_alt64K(b *testing.B)  { benchOp(b, "SymDiff", td.Alternate(2, td.Large)) }
 
-func BenchmarkApply256_64K(b *testing.B) { benchApply(b, td.Rand(256, td.Large)) }
-
 func benchOp(b *testing.B, name string, sets [][]int) {
 	var op mutOp
-	td.ConvMethod(&op, sliceset.Set(nil), name)
-	s, t := sets[0], sets[1]
-	data := make([]int, 0, len(s)+len(t))
+	td.ConvMethod(&op, mapset.Set(nil), name)
+	s, t := mapset.New(sets[0]), mapset.New(sets[1])
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		data = append(data[:0], s...)
-		op(data, t)
-	}
-}
-
-func pivots(sets [][]int) []int {
-	lengths := make([]int, len(sets))
-	for i, set := range sets {
-		lengths[i] = len(set)
-	}
-	return set.Pivots(lengths...)
-}
-
-func benchApply(b *testing.B, sets [][]int) {
-	pivots := pivots(sets)
-	n := len(sets) - 1
-	data := make(sort.IntSlice, 0, pivots[n])
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		data = data[:0]
-		for _, set := range sets {
-			data = append(data, set...)
-		}
-		set.Apply(set.Inter, data, pivots)
+		x, y := s.Copy(), t.Copy()
+		op(x, y)
 	}
 }
