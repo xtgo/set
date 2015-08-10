@@ -11,14 +11,14 @@ import (
 	"github.com/xtgo/set/internal/testdata"
 )
 
-func TestUnion(t *testing.T)   { runMut(t, "Union") }
-func TestInter(t *testing.T)   { runMut(t, "Inter") }
-func TestDiff(t *testing.T)    { runMut(t, "Diff") }
-func TestSymDiff(t *testing.T) { runMut(t, "SymDiff") }
-func TestIsSub(t *testing.T)   { runBool(t, "IsSub") }
-func TestIsSuper(t *testing.T) { runBool(t, "IsSuper") }
-func TestIsInter(t *testing.T) { runBool(t, "IsInter") }
-func TestIsEqual(t *testing.T) { runBool(t, "IsEqual") }
+func TestUnion(t *testing.T)   { testMut(t, "Union") }
+func TestInter(t *testing.T)   { testMut(t, "Inter") }
+func TestDiff(t *testing.T)    { testMut(t, "Diff") }
+func TestSymDiff(t *testing.T) { testMut(t, "SymDiff") }
+func TestIsSub(t *testing.T)   { testBool(t, "IsSub") }
+func TestIsSuper(t *testing.T) { testBool(t, "IsSuper") }
+func TestIsInter(t *testing.T) { testBool(t, "IsInter") }
+func TestIsEqual(t *testing.T) { testBool(t, "IsEqual") }
 
 const format = "%s(%v, %v) = %v, want %v"
 
@@ -27,7 +27,7 @@ type (
 	boolOp func(a, b mapset.Set) bool
 )
 
-func runMut(t *testing.T, name string) {
+func testMut(t *testing.T, name string) {
 	var op mutOp
 	testdata.ConvMethod(&op, mapset.Set(nil), name)
 
@@ -42,7 +42,7 @@ func runMut(t *testing.T, name string) {
 	}
 }
 
-func runBool(t *testing.T, name string) {
+func testBool(t *testing.T, name string) {
 	var op boolOp
 	testdata.ConvMethod(&op, mapset.Set(nil), name)
 
