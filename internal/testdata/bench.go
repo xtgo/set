@@ -15,7 +15,7 @@ func Seq(start, stop, skip int) []int {
 	n := (stop - start) / skip
 	s := make([]int, n)
 	for i := range s {
-		s[i] = (start + i) * skip
+		s[i] = start + (i * skip)
 	}
 	return s
 }
@@ -34,7 +34,7 @@ func Concat(n, k, gap int) [][]int {
 	sets := make([][]int, n)
 	for i := range sets {
 		start := i * l
-		sets[i] = Seq(start, start+l, 1)
+		sets[i] = Seq(start, start+k, 1)
 	}
 	return sets
 }
