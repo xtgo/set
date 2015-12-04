@@ -6,6 +6,10 @@ package set
 
 import "sort"
 
+// The Op type can be used to represent any of the mutating functions, such
+// as Inter.
+type Op func(data sort.Interface, pivot int) (size int)
+
 // Uniq swaps away duplicate elements in data, returning the size of the
 // unique set. data is expected to be pre-sorted, and the resulting set in
 // the range [0:size] will remain in sorted order. Uniq, following a

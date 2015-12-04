@@ -8,8 +8,8 @@
 // Most functions take a data parameter of type sort.Interface and a pivot
 // parameter of type int; data represents two sets covering the ranges
 // [0:pivot] and [pivot:Len], each of which is expected to be sorted and
-// free of duplicates. sort.Sort may be used for sorting, and set.Uniq may
-// be used to filter away duplicates.
+// free of duplicates. sort.Sort may be used for sorting, and Uniq may be
+// used to filter away duplicates.
 //
 // All mutating functions swap elements as necessary from the two input sets
 // to form a single output set, returning its size: the output set will be

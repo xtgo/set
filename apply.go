@@ -6,10 +6,6 @@ package set
 
 import "sort"
 
-// The Op type can be used to represent any of the mutating functions, such
-// as set.Inter.
-type Op func(data sort.Interface, pivot int) (size int)
-
 // Pivots transforms set-relative sizes into data-absolute pivots. Pivots is
 // mostly only useful in conjunction with Apply. The sizes slice sizes may
 // be modified by the call.
