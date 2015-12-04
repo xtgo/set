@@ -20,6 +20,10 @@
 // All pivots must be in the range [0:Len]. A panic may occur when invalid
 // pivots are passed into any of the functions.
 //
+// Convenience functions exist for slices of int, float64, and string
+// element types, and also serve as examples for implementing utility
+// functions for other types.
+//
 // Elements will be considered equal if `!Less(i,j) && !Less(j,i)`. An
 // implication of this is that NaN values are equal to each other.
 package set
