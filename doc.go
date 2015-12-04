@@ -20,7 +20,8 @@
 // All pivots must be in the range [0:Len]. A panic may occur when invalid
 // pivots are passed into any of the functions.
 //
-// Elements will be considered equal if `!Less(i,j) && !Less(j,i)`.
+// Elements will be considered equal if `!Less(i,j) && !Less(j,i)`. An
+// implication of this is that NaN values are equal to each other.
 package set
 
 // BUG(extemporalgenome): All ops should use binary search when runs are detected
