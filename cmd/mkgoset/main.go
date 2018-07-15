@@ -1,0 +1,283 @@
+package main
+
+import (
+	"bytes"
+	"flag"
+	"fmt"
+	"go/format"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/xtgo/set"
+)
+
+const usage = `usage: mkgoset [flags] SetTypeName ElemType|SelFn|LessFn
+
+SetTypeName is the output type name of the generated set. A constructor
+will also be generated with a name of the form NewSetTypeName. As a
+special case, if the setTypeName argument is unexported, the constructor
+name will also be unexported. The -new flag can be used to override the
+default behavior.
+
+Exactly one of the following must also be provided:
+
+- ElemType is any named, comparable type (defined less-than (<) operator).
+
+- SelFn is the name of any func(T1) T2; T1 is the inferred element type and T2
+  is the comparable type of a representative value derived from the input.
+
+- LessFn is the name of any func(T, T) bool; T is the inferred element type and
+  the true is returned if and only if the first input is less than the second.
+
+
+Flags:
+`
+
+func logf(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, "mkgoset: "+format, a...)
+}
+
+func failf(format string, a ...interface{}) {
+	logf(format, a...)
+	os.Exit(1)
+}
+
+func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, usage)
+		flag.PrintDefaults()
+	}
+
+	var g Generator
+
+	flag.StringVar(&g.opath, "o", "", "output file path")
+	flag.StringVar(&g.new, "new", "", "constructor function name")
+	flag.Parse()
+
+	g.args = os.Args[1:]
+	g.pkg = pkgName()
+	setType := flag.Arg(0)
+	symbol := flag.Arg(1)
+	plan, err := Plan(".", setType, symbol)
+	if err != nil {
+		failf("%s\n", err)
+	}
+	g.outer = setType
+	g.elem = plan.ElemType
+	g.lessFuncName = plan.FuncName
+	g.lessFuncDef = plan.FuncDef
+	if plan.FuncDef == "" {
+		// TODO
+		plan.FuncDef = "s[i] < s[j]"
+	}
+	if g.opath == "" {
+		g.opath = filename(g.outer)
+	}
+	if g.new == "" {
+		g.new = constructor(g.outer)
+	}
+	g.inner = overrides[g.elem]
+	if g.inner == "" {
+		msg := "sort.Interface implementation could not be inferred from element type %#q\n"
+		failf(msg, g.elem)
+	}
+	g.genInner = false
+
+	g.deps = append(g.deps, "sort")
+
+	f, err := os.Create(g.opath)
+	if err != nil {
+		failf("%s\n", err)
+	}
+	defer f.Close()
+
+	err = g.Dump(f)
+	if err != nil {
+		failf("%s\n", err)
+	}
+}
+
+func filename(typename string) string {
+	return strings.ToLower(typename) + ".go"
+}
+
+var overrides = map[string]string{
+	"int":     "sort.IntSlice",
+	"float64": "sort.Float64Slice",
+	"string":  "sort.StringSlice",
+}
+
+func constructor(typename string) string {
+	r, _ := utf8.DecodeRuneInString(typename)
+	if unicode.IsUpper(r) {
+		return "New" + typename
+	}
+	return "new" + typename
+}
+
+func internalType(s string) string {
+	return s
+}
+
+func pkgName() string {
+	pkg := os.Getenv("GOPACKAGE")
+	if pkg != "" {
+		return pkg
+	}
+
+	// this is wrong: use go/build
+
+	const errFormat = "failed to infer package name from path: %v"
+	dir, err := os.Getwd()
+	if err != nil {
+		failf(errFormat, err)
+	}
+	pkg = filepath.Base(dir)
+	pkg = scrapeIdent(pkg)
+	if pkg == "" {
+		failf(errFormat, "no identifier in directory name")
+	}
+	return pkg
+}
+
+func scrapeIdent(s string) string {
+	// identifier candidates
+	idents := strings.FieldsFunc(s, nonIdent)
+	var longest string
+	for _, ident := range idents {
+		if len(ident) < len(longest) {
+			// a longer identifier has already been seen
+			continue
+		}
+		r, _ := utf8.DecodeRuneInString(ident)
+		if !unicode.IsDigit(r) {
+			// ident is valid (does not start with a digit)
+			longest = ident
+		}
+	}
+	return longest
+}
+
+func nonIdent(r rune) bool {
+	return r != '_' && !unicode.IsLetter(r) && !unicode.IsDigit(r)
+}
+
+type Generator struct {
+	buf bytes.Buffer
+
+	args []string
+
+	opath string
+	pkg   string
+
+	lessFuncName string
+	lessFuncDef  string
+
+	elem     string // element type name
+	outer    string // outer (exported) type name
+	new      string // default: derived from outer
+	inner    string // inner sort.Interface implementation
+	genInner bool
+
+	deps sort.StringSlice // import paths
+}
+
+func (g *Generator) Dump(w io.Writer) error {
+	code, err := g.generate()
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(code)
+	return err
+}
+
+func (g *Generator) depstr() string {
+	// remove duplicate imports
+	g.deps.Sort()
+	n := set.Uniq(g.deps)
+	g.deps = g.deps[:n]
+
+	deps := make([]string, len(g.deps))
+	for i, dep := range g.deps {
+		deps[i] = strconv.Quote(dep)
+	}
+	out := strings.Join(deps, ";")
+	if len(deps) != 1 {
+		out = "(" + out + ")"
+	}
+	return out
+}
+
+func (g *Generator) generate() ([]byte, error) {
+	rp := strings.NewReplacer(
+		"#ARGSTR#", strings.Join(g.args, " "),
+		"#PKGNAME#", g.pkg,
+		"#DEPS#", g.depstr(),
+		"#OUTER#", g.outer,
+		"#INNER#", g.inner,
+		"#ELEM#", g.elem,
+		"#NEW#", g.new,
+	)
+	var buf bytes.Buffer
+	rp.WriteString(&buf, outerCode)
+	if g.genInner {
+		rp.WriteString(&buf, innerCode)
+	}
+	return format.Source(buf.Bytes())
+}
+
+const outerCode = `// Code generated by "mkgoset #ARGSTR#"; DO NOT EDIT.
+
+package #PKGNAME#
+
+import #DEPS#
+
+type #OUTER# struct{ data #INNER# }
+
+func #NEW#(elems ...#ELEM#) #OUTER# {
+	data := append(#INNER#(nil), elems...)
+	sort.Sort(data)
+	size := set.Uniq(data)
+	return #OUTER#{data[:size]}
+}
+
+func (s #OUTER#) mutate(fn set.Op, t #OUTER#) #OUTER# {
+	data := append(s.data, t.data...)
+	n := fn(data, len(s.data))
+	return #OUTER#{data[:n]}
+}
+
+func (s #OUTER#) check(fn func(sort.Interface, int) bool, t #OUTER#) bool {
+	data := append(s.data, t.data...)
+	return fn(data, len(s.data))
+}
+
+func (s #OUTER#) Len() int                     { return len(s.data) }
+func (s #OUTER#) Append(dst []#ELEM#) []#ELEM# { return append(dst, s.data...) }
+func (s #OUTER#) Copy() #OUTER#                { return #OUTER#{s.Append(nil)} }
+// TODO: add cap param to Copy, to make it handle Grow case too?
+
+func (s #OUTER#) Union(t #OUTER#) #OUTER#   { return s.mutate(setalgo.Union, t) }
+func (s #OUTER#) Inter(t #OUTER#) #OUTER#   { return s.mutate(setalgo.Inter, t) }
+func (s #OUTER#) SymDiff(t #OUTER#) #OUTER# { return s.mutate(setalgo.SymDiff, t) }
+func (s #OUTER#) Diff(t #OUTER#) #OUTER#    { return s.mutate(setalgo.Diff, t) }
+
+func (s #OUTER#) IsEqual(t #OUTER#) bool { return s.check(setalgo.IsEqual, t) }
+func (s #OUTER#) IsInter(t #OUTER#) bool { return s.check(setalgo.IsInter, t) }
+func (s #OUTER#) IsSub(t #OUTER#) bool   { return s.check(setalgo.IsSub, t) }
+func (s #OUTER#) IsSuper(t #OUTER#) bool { return s.check(setalgo.IsSub, t) }
+`
+
+const innerCode = `
+type #INNER# []#ELEM#
+
+func (s #INNER#) Len() int           { return len(s) }
+func (s #INNER#) Less(i, j int) bool { return #FUNCDEF# }
+func (s #INNER#) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+`

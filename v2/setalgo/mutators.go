@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package set
+package setalgo
 
-import "sort"
+import (
+	"sort"
 
-// The Op type can be used to represent any of the mutating functions, such
-// as Inter.
-type Op func(data sort.Interface, pivot int) (size int)
+	"github.com/xtgo/set/internal"
+)
 
 // Uniq swaps away duplicate elements in data, returning the size of the
 // unique set. data is expected to be pre-sorted, and the resulting set in
@@ -32,8 +32,7 @@ func Uniq(data sort.Interface) (size int) {
 }
 
 // Inter performs an in-place intersection on the two sets [0:pivot] and
-// [pivot:Len]; the resulting set will occupy [0:size]. Inter is both
-// associative and commutative.
+// [pivot:Len]; the resulting set will occupy [0:size].
 func Inter(data sort.Interface, pivot int) (size int) {
 	k, l := pivot, data.Len()
 	p, i, j := 0, 0, k
@@ -54,18 +53,33 @@ func Inter(data sort.Interface, pivot int) (size int) {
 }
 
 // Union performs an in-place union on the two sets [0:pivot] and
-// [pivot:Len]; the resulting set will occupy [0:size]. Union is both
-// associative and commutative.
+// [pivot:Len]; the resulting set will occupy [0:size].
 func Union(data sort.Interface, pivot int) (size int) {
 	// BUG(extemporalgenome): Union currently uses a multi-pass implementation
 
 	sort.Sort(data)
 	return Uniq(data)
+
+	flipped := false
+	_ = flipped // TODO
+	k, l := pivot, data.Len()
+	p, i, j := 0, 0, k
+	for i < k && j < l {
+		switch {
+		case data.Less(j, i):
+			data.Swap(i, j)
+		case data.Less(i, j):
+			if p < i {
+				data.Swap(p, i)
+			}
+			p, i = p+1, i+1
+		}
+	}
+	panic("not implemented")
 }
 
-// Diff performs an in-place difference on the two sets [0:pivot] and
-// [pivot:Len]; the resulting set will occupy [0:size]. Diff is neither
-// associative nor commutative.
+// Diff performs an in-place difference on the two sets represented by
+// [0:pivot] and [pivot:Len]; the resulting set will occupy [0:size].
 func Diff(data sort.Interface, pivot int) (size int) {
 	k, l := pivot, data.Len()
 	p, i, j := 0, 0, k
@@ -82,22 +96,23 @@ func Diff(data sort.Interface, pivot int) (size int) {
 			i, j = i+1, j+1
 		}
 	}
-	return xcopy(data, p, i, k, k)
+	// at this point we've exhausted one of the sets, so swap any
+	// remaining elements, if any, from the first set into place.
+	return internal.XSwap(data, p, i, k, k)
 }
 
 // SymDiff performs an in-place symmetric difference on the two sets
 // [0:pivot] and [pivot:Len]; the resulting set will occupy [0:size].
-// SymDiff is both associative and commutative.
 func SymDiff(data sort.Interface, pivot int) (size int) {
 	// BUG(extemporalgenome): SymDiff currently uses a multi-pass implementation
 
 	i := Inter(data, pivot)
 	l := data.Len()
-	b := boundspan{data, span{i, l}}
+	b := internal.BoundSpan{data, internal.Span{i, l}}
 	sort.Sort(b)
 	size = Uniq(b)
-	slide(data, 0, i, size)
+	internal.Slide(data, 0, i, size)
 	l = i + size
-	sort.Sort(boundspan{data, span{size, l}})
+	sort.Sort(internal.BoundSpan{data, internal.Span{size, l}})
 	return Diff(data, size)
 }

@@ -2,21 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package set_test
+package setalgo_test
 
 import (
 	"testing"
 
-	"github.com/xtgo/set/internal/sliceset"
-	"github.com/xtgo/set/internal/testdata"
+	ss "github.com/xtgo/set/internal/sliceset"
+	td "github.com/xtgo/set/internal/testdata"
 )
 
 func TestUniq(t *testing.T) {
-	for _, tt := range testdata.UniqTests {
-		s := sliceset.Set(tt.In).Copy()
-		s = s.Uniq()
+	for _, tt := range td.UniqTests {
+		s := ss.Set(tt.In).Copy().Uniq()
 
-		if !testdata.IsEqual(s, tt.Out) {
+		if !td.IsEqual(s, tt.Out) {
 			t.Errorf("Uniq(%v) = %v, want %v", tt.In, s, tt.Out)
 		}
 	}
@@ -34,20 +33,20 @@ func TestIsEqual(t *testing.T) { testBool(t, "IsEqual") }
 const format = "%s(%v, %v) = %v, want %v"
 
 type (
-	mutOp  func(a, b sliceset.Set) sliceset.Set
-	boolOp func(a, b sliceset.Set) bool
+	mutOp  func(a, b ss.Set) ss.Set
+	boolOp func(a, b ss.Set) bool
 )
 
 func testMut(t *testing.T, name string) {
 	var op mutOp
-	testdata.ConvMethod(&op, sliceset.Set(nil), name)
+	td.ConvMethod(&op, ss.Set(nil), name)
 
-	for _, tt := range testdata.BinTests {
-		a := sliceset.Set(tt.A).Copy()
+	for _, tt := range td.BinTests {
+		a := ss.Set(tt.A).Copy()
 		c := op(a, tt.B)
 		want := tt.SelSlice(name)
 
-		if !testdata.IsEqual(c, want) {
+		if !td.IsEqual(c, want) {
 			t.Errorf(format, name, tt.A, tt.B, c, want)
 		}
 	}
@@ -55,9 +54,9 @@ func testMut(t *testing.T, name string) {
 
 func testBool(t *testing.T, name string) {
 	var op boolOp
-	testdata.ConvMethod(&op, sliceset.Set(nil), name)
+	td.ConvMethod(&op, ss.Set(nil), name)
 
-	for _, tt := range testdata.BinTests {
+	for _, tt := range td.BinTests {
 		ok := op(tt.A, tt.B)
 		want := tt.SelBool(name)
 

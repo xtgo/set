@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package set
+package setalgo
 
 import "sort"
-
-// The Cmp type can be used to represent any of the comparison functions,
-// such as IsInter.
-type Cmp func(data sort.Interface, pivot int) bool
 
 // IsSub returns true only if all elements in the range [0:pivot] are
 // also present in the range [pivot:Len].
