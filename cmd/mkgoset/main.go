@@ -280,4 +280,6 @@ type #INNER# []#ELEM#
 func (s #INNER#) Len() int           { return len(s) }
 func (s #INNER#) Less(i, j int) bool { return #FUNCDEF# }
 func (s #INNER#) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+func (s #INNER#) Shift(i, j, k int)  { }
 `
